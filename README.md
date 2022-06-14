@@ -106,6 +106,43 @@ Look at that `main()` function! No more callbacks! Of course, we had to write `S
 
 Note that I'm just showing that it *can* be done this way, and it *might* be useful in some cases. The question of whether *you* should do it is to be answered by your judgment. Try to imagine scenarios in which this approach would be useful and scenarios in which callbacks would be better.
 
+## A decorated subscriber
+
+With this trick you can use decorators to define subscriptions. This may look familiar if you have used libraries like Flask.
+
+```python
+import asyncio
+
+import rclpy
+from std_msgs.msg import String
+
+rclpy.init()
+node = rclpy.create_node('async_subscriber')
+
+def SubscriberX(type, topic, qos=10):
+    def functor(async_function):
+        node.create_subscription(type, topic, async_function, qos)
+    return functor
+
+@SubscriberX(String, '/test')
+async def my_test_listener(msg):
+    print(f'Message received: {msg}')
+
+async def main():
+    print("Node started.")
+
+async def ros_loop():
+    while rclpy.ok():
+        rclpy.spin_once(node, timeout_sec=0)
+        await asyncio.sleep(1e-4)
+
+if __name__ == "__main__":
+    future = asyncio.wait([ros_loop(), main()])
+    asyncio.get_event_loop().run_until_complete(future)
+```
+
+Similar decorators can be implemented for services and action servers.
+
 ## A better action client
 
 I personally find rclpy action client API a bit messy. Those get much cleaner using async. In fact, I wrote this post mainly for this section.
